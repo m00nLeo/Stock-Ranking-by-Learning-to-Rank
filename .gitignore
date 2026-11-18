@@ -1,0 +1,88 @@
+# ============================================================
+# Repo này (gốc dự án) chỉ dùng GitHub để LƯU TRỮ VÀ VERSION
+# CODE, nằm trong thư mục code/. Toàn bộ tài liệu luận văn
+# (00_Quan_ly_du_an/, 01_Tai_lieu_goc/, 02_Giai_doan_1_Tong_quan/,
+# 03_Giai_doan_2_Cu_the_hoa/, các thư mục giai đoạn sau này,
+# README.md gốc, scratchpad/) KHÔNG được đưa lên GitHub.
+#
+# Quy ước (an toàn hơn liệt kê từng thư mục tài liệu): chặn
+# TẤT CẢ ở gốc dự án, chỉ mở lại thư mục code/ và vài file cấu
+# hình git. Thư mục tài liệu mới tạo sau này tự động bị chặn,
+# không cần sửa file này. (Trước 03/11/2026: liệt kê theo đuôi
+# file *.pdf, *.md, *.csv, *.pptx, *.docx — xem .gitignore.bak_before_3_1)
+# ============================================================
+/*
+!/.gitignore
+!/.gitattributes
+!/code/
+ban_do_khai_niem.html
+# ============================================================
+# Trong code/: ignore theo chuẩn Python / khoa học dữ liệu,
+# để tránh "quá tải" khi đẩy lên GitHub (D67, bước 3.1)
+# ============================================================
+
+# --- Python runtime ---
+code/**/__pycache__/
+code/**/*.py[cod]
+code/**/*$py.class
+code/**/*.egg-info/
+code/**/.eggs/
+code/build/
+code/dist/
+
+# --- Virtual env ---
+code/.venv/
+code/venv/
+code/env/
+code/ENV/
+
+# --- Jupyter / Colab ---
+code/**/.ipynb_checkpoints/
+code/**/*-checkpoint.ipynb
+
+# --- OS / editor ---
+**/.DS_Store
+**/Thumbs.db
+code/.vscode/
+code/.idea/
+
+# --- Khóa API, thông tin bí mật (không bao giờ commit) ---
+code/.env
+code/**/*.env
+code/**/*.secret
+code/**/service_account*.json
+code/**/*_key.json
+code/**/*credentials*.json
+
+# --- Dữ liệu và artefact: giữ cấu trúc thư mục (.gitkeep), bỏ nội dung ---
+code/data/raw/*
+!code/data/raw/.gitkeep
+code/data/interim/*
+!code/data/interim/.gitkeep
+code/data/processed/*
+!code/data/processed/.gitkeep
+!code/data/processed/README.md
+!code/data/processed/MANIFEST.md
+code/artifacts/*
+!code/artifacts/.gitkeep
+code/outputs/*
+!code/outputs/.gitkeep
+
+# --- Phòng khi file dữ liệu/mô hình nặng lọt ra ngoài 3 thư mục trên ---
+code/**/*.parquet
+code/**/*.feather
+code/**/*.h5
+code/**/*.hdf5
+code/**/*.pkl
+code/**/*.pickle
+code/**/*.joblib
+code/**/*.pt
+code/**/*.ckpt
+code/**/*.zip
+code/**/*.7z
+
+# --- Test / coverage ---
+code/.pytest_cache/
+code/**/.pytest_cache/
+code/.coverage
+code/htmlcov/

@@ -1,0 +1,185 @@
+# config.yaml — mọi hằng số đã chốt ở Giai đoạn 2 (D54-D65), dùng chung cho toàn bộ code/.
+# Không lặp lại các con số này trong code; mọi module đọc từ đây.
+# Nguồn: 00_Quan_ly_du_an/decision_log.md (D54-D65), 00_Quan_ly_du_an/charter.md mục 4-5,
+# 00_Quan_ly_du_an/PROMPT_phien_moi_giai_doan_3.md mục 4.
+# Giá trị đánh dấu "(xác nhận ở 3.2/3.4)" là mốc chờ xác nhận khi kiểm dữ liệu thật,
+# KHÔNG được tự đổi ở đây mà không có một mã D mới.
+
+seed: 42  # chọn tùy ý, chưa có trong decision_log; cố định để tái lập (D67, bước 3.1)
+
+# --- Horizon dự báo (ngày/phiên giao dịch) ---
+horizons: [5, 10, 21]
+
+# --- Mốc chia dữ liệu theo thời gian (D44, D62; mốc cụ thể xác nhận ở 3.2) ---
+data_split:
+  feature_history_start: "2022-01"   # lịch sử để tính đặc trưng, không nhãn, không giao dịch
+  labeled_sample_start: "2023-01"    # mẫu có nhãn bắt đầu
+  train_start: "2023-01"
+  train_end: "2024-06"               # khoảng 375 phiên (tự tính, D62)
+  validation_start: "2024-07"
+  validation_end: "2025-03"          # khoảng 185 phiên (tự tính, D62)
+  test_start: "2025-04"
+  test_end: "2026-10-02"             # [SỬA 3.7, D79; trước: null] phiên quyết định cuối có nhãn h=21 đủ, xác định từ dữ liệu thật
+  refit_frequency_sessions: 63       # refit mỗi quý trong test, cửa sổ huấn luyện mở rộng (D62)
+  purge: "theo t1"                   # purge theo thời điểm kết thúc nhãn, không chỉ theo h (D62)
+  embargo_sessions:
+    forward_only: 0                  # lịch chỉ đi tới
+    lookback_procedure: 22           # khi thủ tục dùng dữ liệu sau khối đánh giá (D62)
+  early_stopping_fraction_gbdt: 0.20  # GBDT dừng sớm trên 20% cuối cửa sổ huấn luyện (D62)
+
+# --- Nguồn dữ liệu giá (D71, bước 3.2) ---
+# vnstock và phụ thuộc vnai bị PyPI cách ly từ 24/09/2026 (toàn bộ bản, kể cả 3.x cũ),
+# không cài được. Thay bằng client tự viết, gọi thẳng API công khai Entrade/DNSE.
+data_source:
+  provider: "Entrade/DNSE (API công khai, tự viết client, không qua thư viện vnstock)"
+  base_url: "https://services.entrade.com.vn/chart-api/v2/ohlcs"
+  confirmed_coverage: "từ 01/2022 đến ít nhất 30/10/2026, cho mã đang niêm yết và VN-Index"
+  not_available: "mã đã hủy niêm yết (thử ROS, FLC: invalid symbol); VN30 theo từng kỳ (không có API, tổng hợp thủ công từ thông báo HOSE ở 3.4)"
+  adjusted_price: "đã điều chỉnh (adjusted), KHÔNG phải giá thô (3.3, xác nhận bằng cổ tức cổ phiếu 10% của HPG, GDKHQ 25/05/2026); không có giá thô cho kiểm khóa trần/sàn, xem code/docs/3_3_lam_sach_du_lieu.md mục 4"
+
+# --- Universe (D55, D56, D62, D74; N và ngưỡng lọc chọn ở 3.4 từ phân phối dữ liệu train+validation) ---
+universe:
+  exchanges: ["HOSE", "HNX"]
+  rank_universe_size_range: [50, 150]
+  keep_delisted: false  # [SỬA 3.2, D71; trước: true] giới hạn dữ liệu, xem data_source.not_available và giao_thuc_chia_du_lieu_bias.md rủi ro #3
+  select_params_on: ["train", "validation"]  # không bao giờ trên test
+  n_size: 150  # D74: cận trên của [50,150], pool đạt điều kiện luôn >= 287 mã/ngày trên train+validation
+  liquidity_window_sessions: 21  # L, D74: ~1 tháng, cùng đơn vị với momentum B2 ngắn nhất
+  liquidity_lag_sessions: 0      # ℓ, D74: không cần trễ thêm, dữ liệu <= t đã là F_t
+  price_min_thousand_vnd: 5.0    # p_min, D74: ~bách phân vị 10 giá đóng cửa trên train+validation
+  avg_value_min_thousand_vnd: 100000  # v_min, D74: ~giữa bách phân vị 25-30 GTGD TB 21 phiên
+  min_active_sessions: 15        # n_min, D74: phòng ngừa, không ràng buộc trên dữ liệu hiện có (luôn 21/21)
+  listed_stocks_source: "finance.vietstock.vn/truy-xuat-du-lieu/tong-hop-doanh-nghiep.htm (04/11/2026, người dùng cung cấp), đã loại 24 mã quỹ ETF; 707 mã: 408 HOSE, 299 HNX"
+  vn30_membership_source: "Thành_viên_VN30.csv (người dùng cung cấp 04/11/2026), 8 kỳ 01/2023-07/2026, nguồn công bố của HOSE hoặc dẫn lại nguyên văn; đối chiếu khớp WebSearch độc lập cho 4 kỳ"
+  delisted_undercount_estimate: "~45-70 mã HOSE+HNX hủy niêm yết 01/2023-11/2026 (ước lượng từ tin tức, không có thống kê chính thức đầy đủ); ước lượng 3-8 mã có thể đã lọt vào U_t nếu còn dữ liệu (~2-5% của N=150), xem code/docs/3_4_universe.md mục 3"
+
+# --- Giá vào/thoát lệnh, mục tiêu hồi quy (D55, D61) ---
+execution:
+  entry_price: "đóng cửa t+1"
+  exit_price: "đóng cửa t+1+h"
+  signal_price: "đóng cửa t"
+  regression_target: "lợi suất vượt trung bình chéo (cross-sectional excess return)"
+  relevance_quantiles: 5  # Q = 5
+
+# --- Chi phí giao dịch VN (D58, D61; nguồn 03_Giai_doan_2_Cu_the_hoa/3_Chi_phi_VN/nguon_2_6.md) ---
+costs:
+  broker_fee_per_side: 0.0015        # 0,15% mỗi chiều, đã gồm phí Sở
+  sell_tax: 0.0010                   # thuế bán 0,1%
+  slippage_per_side: 0.0010          # trượt giá 0,10% mỗi chiều (độ nhạy 0 và 0,20%)
+  slippage_sensitivity: [0.0, 0.0020]
+  c_buy: 0.0025                      # tự tính: phí + trượt giá chiều mua
+  c_sell: 0.0035                     # tự tính: phí + thuế + trượt giá chiều bán
+  c_rt_base: 0.0060                  # chi phí khứ hồi cơ sở (tự tính), dùng cố định cho rào nhãn
+  c_rt_sensitivity: [0.0030, 0.0120] # thấp / cao, dùng cho phân tích độ nhạy (không dùng cho nhãn)
+
+# --- Biên độ giá, phiên ATC, T+2 (D58) ---
+market_rules:
+  price_band:
+    HOSE: 0.07
+    HNX: 0.10
+    first_listing_or_post_suspension:
+      HOSE: 0.20
+      HNX: 0.30
+      suspension_threshold_sessions: 25
+  atc_session: "14:30-14:45"
+  settlement: "T+2"
+  ceiling_at_entry: "coi như không mua"
+  floor_at_exit: "giữ đến phiên bán được (chi tiết 3.6)"
+
+# --- Nhãn xu hướng triple-barrier (D63) ---
+trend_label:
+  k_fixed: 1
+  sigma_estimator: "EWMA"
+  sigma_span: 20
+  barrier_formula: "b = max(k * sigma_hat * sqrt(h), 0.0060)"
+  touch_price: "đóng cửa"
+  touch_window: "t+3 .. t+1+h"       # do T+2, không chạm hai rào cùng phiên
+  classes: ["tăng", "đi ngang", "giảm"]
+  sign_label_for_ablation: true      # dùng cho A2
+  market_state:
+    rule: "SMA50/SMA200 trên VN-Index"
+    n_states: 3
+    purpose: "chỉ để chia kết quả cho RQ3"
+
+# --- Sổ đăng ký feature (D76; công thức đầy đủ ở code/vnrank/features/feature_registry.py) ---
+features:
+  lookback_windows_sessions: [21, 63, 126]  # tái dùng từ model_grid.baseline.B2 (D59)
+  lag_sessions: 0  # dữ liệu <= t đã là F_t (charter mục 5 điều 1), giống ell = 0 ở 3.4
+  rsi_window: 14          # quy ước kinh điển Wilder, không phải số liệu quy định VN
+  macd: { fast: 12, slow: 26, signal: 9 }  # quy ước kinh điển
+  volume_ratio_window_sessions: 21  # so với 21 phiên LIỀN TRƯỚC, không gồm phiên hiện tại
+  liquidity_feature: "avg_value_l (tái dùng compute_liquidity_features, L=21, ell=0, D74)"
+  cross_sectional_feature: "beta_63 (beta cuộn 63 phiên so với VN-Index)"
+  cross_sectional_normalization: "thứ hạng trong U_t, đưa về [-1,1]; trung vị chéo mã thay giá trị thiếu"
+
+# --- Lưới mô hình đóng băng (D59, D64) ---
+model_grid:
+  baseline:
+    B0: "đồng trọng số"
+    B1: "VN30"
+    B2:
+      window: [21, 63, 126]
+      skip: [0, 21]
+    B3:
+      estimation_window: 126
+      window: [63, 126]
+      skip: 21
+      note: "IMOM rút gọn một nhân tố, khác FF3 36 tháng của VN-07"
+    B4:
+      window: [21, 63]
+  regression_topk:
+    R1_ridge:
+      alpha: [0.1, 1, 10]
+    R2_lightgbm: "đối chứng của H1"
+    R3_xgboost:
+      max_depth: [3, 5, 7]
+  ranking:
+    L1_lightgbm_lambdarank: true
+  gbdt_common:
+    learning_rate: 0.05
+    max_trees: 2000
+    early_stopping_rounds: 50
+    subsample_row: 0.8
+    subsample_col: 0.8
+  lightgbm_configs:          # dùng chung cho L1 và R2 (num_leaves, min_data_in_leaf)
+    - { num_leaves: 15, min_data_in_leaf: 200 }
+    - { num_leaves: 31, min_data_in_leaf: 100 }
+    - { num_leaves: 63, min_data_in_leaf: 50 }
+  trend_classifier_T2_configs: 3   # cùng dạng lưới LightGBM ở trên
+  horizon_aggregation:
+    F0: "L1 gộp 5, 10, 21 (trung bình thứ hạng)"
+    F1: "tốt nhất theo từng kỳ hạn"
+
+# --- Tích hợp xu hướng vào chọn cổ phiếu (D59) ---
+trend_integration:
+  top_M: 20
+  K: 10
+  K_sensitivity: [5, 20]
+  rule: "trong top-M của L1, chọn K mã có P(+) - P(-) cao nhất"
+  ablations: ["A0_khong_xu_huong", "A2_nhan_dau_loi_suat", "A3_chon_ngau_nhien_trong_topM", "A4_xu_huong_lam_dac_trung"]
+  trend_classifier_baselines: ["D0_lop_da_so", "D1_tan_suat_lop", "D2_ngau_nhien_theo_ty_le"]
+
+# --- Giả thuyết và kiểm định (D54, D60, D65) ---
+hypotheses:
+  family: ["H1", "H2", "H3", "H4"]
+  correction: "Holm"
+  alpha: 0.05
+  one_sided: true
+  H1: "L1 có Rank IC cao hơn R2 ở h = 5 (Newey-West, độ trễ >= h-1)"
+  H2: "F0 không kém F1, delta_IC = 0.2 * Rank IC validation của F1 (ghi trước khi mở test)"
+  H3: "T2 có macro-F1 cao hơn lớp đa số ở cả ba h (bootstrap khối theo ngày; p_H3 = max ba h)"
+  H4: "precision@K có xu hướng không kém không xu hướng, biên 0.02 (Newey-West)"
+  H1b_phu: "Sharpe sau chi phí, báo đầy đủ, không hiệu chỉnh Holm"
+  pbo_S: 8  # D62: giảm từ 16 xuống 8 nếu khối dưới 20 phiên
+  bootstrap_n: 10000  # B, D60 (giao_thuc_danh_gia.md mục 3): số lần lặp bootstrap khối tròn
+  bootstrap_block_len_factor_h: 2  # độ dài khối b = 2*h, D60
+
+# --- Hệ thống minh họa (D64; chạy trên Google Colab, không dùng để chọn tham số) ---
+system:
+  runtime: "Google Colab"
+  interface_candidate: "Gradio"
+  read_functions: ["xep_hang(ngay, h, K)", "xu_huong(ma, ngay, h)", "ket_qua(h, K, muc_chi_phi)"]
+  chatbot_temperature: 0
+  log_format: "JSONL"
+  log_destination: "Google Drive"
+  api_key_storage: "Colab Secrets"

@@ -1,0 +1,55 @@
+# requirements.txt — phiên bản thư viện cố định cho tái lập (bước 3.1, D67).
+# [SỬA 4.3, D96] requirements.lock.txt ĐÃ CÓ: cài sạch, không lỗi phụ thuộc, trong code/.venv
+# (Python 3.12.10, cài qua winget, KHÔNG phải chạy trên Colab thật — Colab thật chạy Python ~3.12
+# nên đây là môi trường gần giống nhất chưa cần mở notebook thật; xem decision_log.md D95/D96).
+# Khuyến nghị xác nhận lại trên Colab thật khi có dịp, rồi `pip freeze > requirements.lock.txt` lại
+# nếu có khác biệt.
+
+# --- Dữ liệu thị trường VN ---
+# vnstock (và phụ thuộc vnai) bị PyPI cách ly từ 24/09/2026, không cài được (3.2, D71).
+# Thay bằng client tự viết gọi thẳng API Entrade/DNSE (code/vnrank/data/entrade_client.py),
+# chỉ cần requests, không có phụ thuộc đóng nguồn.
+requests==2.32.3
+
+# --- Xử lý dữ liệu ---
+pandas==2.2.3
+numpy==1.26.4
+pyarrow==17.0.0
+openpyxl==3.1.5  # đọc file Excel danh sách mã niêm yết (3.4)
+
+# --- Mô hình ---
+scikit-learn==1.5.2
+lightgbm==4.5.0
+xgboost==2.1.1
+
+# --- Thống kê, kiểm định (Newey-West, bootstrap) ---
+scipy==1.14.1
+statsmodels==0.14.4
+
+# --- Cấu hình, tiện ích ---
+PyYAML==6.0.2
+tqdm==4.66.5
+
+# --- Hệ thống minh họa (Colab, S1-S12) ---
+gradio==5.6.0
+# huggingface_hub: phụ thuộc bắc cầu của gradio, chỉ ghi ràng buộc >=0.25.1 nên pip tự chọn bản
+# MỚI NHẤT (2.4.0) theo mặc định — bản đó đã bỏ `HfFolder` mà gradio 5.6.0 vẫn import
+# (gradio/oauth.py), làm ImportError ngay khi `import gradio` (phát hiện ở S2, D104). Ghim cứng
+# một bản 0.x cùng thời điểm phát hành gradio 5.6.0 (còn `HfFolder`) để cài tái lập được, không
+# phụ thuộc vào bản mới nhất lúc cài.
+huggingface_hub==0.26.2
+# google-genai: SDK gọi Gemini API cho chatbot (S12, D110, người dùng chọn Google Gemini). Kéo
+# theo websockets 17.x (gradio-client yêu cầu <13.0) — xung đột ĐÃ KIỂM TRA KHÔNG LÀM HỎNG gradio
+# (import + toàn bộ test_demo_gradio.py vẫn PASS, chỉ có một DeprecationWarning), ghi nhận ở D111.
+google-genai==3.3.0
+
+# --- Báo cáo (bước 5.1, D115) ---
+# matplotlib: mặc định pip chọn bản MỚI NHẤT (3.11.2 lúc cài) kéo theo numpy>=1.25 ĐÒI HỎI numpy 2.x
+# mới nhất (2.5.5), xung đột trực tiếp với numpy==1.26.4 đã pin (scipy==1.14.1 yêu cầu numpy<2.3) —
+# cùng kiểu sự cố đã gặp ở gradio/huggingface_hub (D104). Ghim bản matplotlib CŨ hơn (3.9.2) tương
+# thích numpy 1.26.4, không nâng numpy lên.
+matplotlib==3.9.2
+python-docx==1.2.0
+
+# --- Kiểm thử ---
+pytest==8.3.3
